@@ -62,9 +62,10 @@ jobs:
           git config user.email "adetoyinife@gmail.com"
           git config user.name "toyintech2026"
 
-          sed -i "s+${{ vars.ECR_REPO }}/bank-frontend:.*+${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}+g" ./bank-project/frontend.yaml
+          sed -i "s|image: .*bank-frontend:.*|image: ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}|g" ./bank-project/frontend.yaml
 
-          cat ./bank-project/frontend.yaml | grep -q "${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}"
+          cat ./bank-project/frontend.yaml
+          grep "bank-frontend:${{ github.run_number }}" ./bank-project/frontend.yaml
 
           git add bank-project/frontend.yaml
           git commit -m "Update frontend image to version ${{ github.run_number }}" || echo "No manifest changes to commit"
