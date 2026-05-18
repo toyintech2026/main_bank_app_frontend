@@ -11,13 +11,13 @@ on:
 
 jobs:
   Continues-Integration_build_and_push:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, docker, terraform]
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
-        repository: digitalwitchdemo/main_bank_app_frontend
+        repository: toyintech2026/main_bank_app_frontend
         ref: main
 
 
