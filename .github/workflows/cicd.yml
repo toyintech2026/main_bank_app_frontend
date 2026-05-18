@@ -62,7 +62,7 @@ jobs:
           GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
           GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
       run: |
-         git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/toyintech2026/kubernetes-manifest.git
+         git clone https://github.com/toyintech2026/kubernetes-manifest.git
          
          cd kubernetes-manifest
          git config --global user.email "adetoyinife@gmail.com"
@@ -74,4 +74,5 @@ jobs:
 
          git add bank-project/frontend.yaml
          git commit -m "Update frontend image to version ${{ github.run_number }}"
+         git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/toyintech2026/kubernetes-manifest.git
          git push origin main
