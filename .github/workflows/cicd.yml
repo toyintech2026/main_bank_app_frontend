@@ -14,67 +14,58 @@ jobs:
     runs-on: [self-hosted, docker, terraform]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        repository: toyintech2026/main_bank_app_frontend
-        ref: main
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Log in to awscli
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-    - name: Log in to awscli
-      uses: aws-actions/configure-aws-credentials@v3
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+      - name: Build container image
+        run: docker build -t bank-app-frontend:latest .
 
+      - name: Log in to ECR with short-lived credentials
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ vars.ECR_REPO }}
 
-    - name: Build container image
-      run: docker build -t bank-app-frontend:latest .
+      - name: Tag Docker image
+        run: docker tag bank-app-frontend:latest ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}
 
-    - name: Log in to ECR with short-lived credentials
-      run: |
-        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ vars.ECR_REPO }}
-  
-    - name: Tag Docker image
-      run: docker tag bank-app-frontend:latest ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}
-    
-    - name: Push image to ECR
-      run: docker push ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}
+      - name: Push image to ECR
+        run: docker push ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}
 
+      - name: Clean up Docker image locally
+        run: |
+          docker rmi bank-app-frontend:latest || true
+          docker rmi ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }} || true
 
-    - name: Clean up Docker image locally
-      run: |
-        docker rmi bank-app-frontend:latest
-        docker rmi ${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}
-
-    - name: Clean up GitHub repo on runner
-      run: rm -rf ./*
-
-
-  
   Continues-Update_k8s_manifest:
     runs-on: [self-hosted, docker, terraform]
     needs: Continues-Integration_build_and_push
+
     steps:
-    - name: Checkout repository.
-      env:
-          GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
-          GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
+      - name: Checkout Kubernetes manifest repository
+        uses: actions/checkout@v4
+        with:
+          repository: toyintech2026/kubernetes-manifest
+          token: ${{ secrets.GIT_PASSWORD }}
+          ref: main
+          path: kubernetes-manifest
 
-      run: |
-         rm -rf kubernetes-manifest
-         git clone https://github.com/toyintech2026/kubernetes-manifest.git
-         
-         cd kubernetes-manifest
-         git config --global user.email "adetoyinife@gmail.com"
-         git config --global user.name "toyintech2026"
+      - name: Update frontend image in manifest
+        run: |
+          cd kubernetes-manifest
 
-         sed -i "s+${{ vars.ECR_REPO }}/bank-frontend:.*+${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}+g" ./bank-project/frontend.yaml
+          git config user.email "adetoyinife@gmail.com"
+          git config user.name "toyintech2026"
 
-         cat ./bank-project/frontend.yaml | grep -q "${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}"
+          sed -i "s+${{ vars.ECR_REPO }}/bank-frontend:.*+${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}+g" ./bank-project/frontend.yaml
 
-         git add bank-project/frontend.yaml
-         git commit -m "Update frontend image to version ${{ github.run_number }}"
-         git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/toyintech2026/kubernetes-manifest.git
-         git push origin main
+          cat ./bank-project/frontend.yaml | grep -q "${{ vars.ECR_REPO }}/bank-frontend:${{ github.run_number }}"
+
+          git add bank-project/frontend.yaml
+          git commit -m "Update frontend image to version ${{ github.run_number }}" || echo "No manifest changes to commit"
+          git push origin main
