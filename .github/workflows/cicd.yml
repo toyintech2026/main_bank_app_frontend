@@ -61,7 +61,9 @@ jobs:
       env:
           GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
           GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
+
       run: |
+         rm -rf kubernetes-manifest
          git clone https://github.com/toyintech2026/kubernetes-manifest.git
          
          cd kubernetes-manifest
